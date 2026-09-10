@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Google Health MCP Server</title>
+<meta name="description" content="Privacy policy for the self-hosted Google Health MCP server.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+
+<nav class="site">
+  <a href="./">Home</a>
+  <a href="privacy.html">Privacy Policy</a>
+  <a href="terms.html">Terms of Service</a>
+  <a href="https://github.com/Novrax/fitbit-googlehealth-mcp">Source code</a>
+</nav>
+
+<h1>Privacy Policy</h1>
+<p class="meta">Last updated: 10 September 2026</p>
+
+<div class="callout">
+  <p><strong>In short:</strong> this application is self-hosted and single-user. You deploy your own
+  copy, it talks to your own Google account, and your health data is never transmitted to the
+  authors or to any third party beyond the infrastructure you yourself choose to run it on. There
+  is no shared service and no operator with access to your data.</p>
+</div>
+
+<h2>1. Who this policy covers</h2>
+
+<p>The Google Health MCP Server ("the Software") is open-source software published at
+<a href="https://github.com/Novrax/fitbit-googlehealth-mcp">github.com/Novrax/fitbit-googlehealth-mcp</a>.</p>
+
+<p>The Software is not offered as a hosted service. Each user installs it on infrastructure they
+control and registers their own Google Cloud OAuth credentials. In data-protection terms, the
+person who deploys an instance is the controller of the data that instance processes. The authors
+of the Software operate no server, receive no data, and have no ability to access any deployment.</p>
+
+<h2>2. What data the Software accesses</h2>
+
+<p>With your explicit consent at the Google sign-in screen, and only for the scopes you approve,
+the Software may access:</p>
+
+<div class="table-wrap">
+<table>
+  <tr><th>Scope</th><th>Data</th></tr>
+  <tr>
+    <td>Activity &amp; fitness</td>
+    <td>Steps, distance, floors, calories, active minutes, workouts, heart rate, heart rate
+    variability, VO<sub>2</sub> max</td>
+  </tr>
+  <tr>
+    <td>Health metrics &amp; measurements</td>
+    <td>Weight, body fat, blood oxygen saturation, respiratory rate, skin temperature, resting
+    heart rate</td>
+  </tr>
+  <tr><td>Sleep</td><td>Sleep sessions, durations and sleep-stage breakdowns</td></tr>
+  <tr><td>Nutrition</td><td>Food and hydration log entries and their nutrient values</td></tr>
+  <tr><td>Profile (read)</td><td>Account identifier and membership start date</td></tr>
+  <tr><td>Settings (read)</td><td>Unit preferences, timezone, and paired device information</td></tr>
+</table>
+</div>
+
+<p>Where a scope is granted for writing, the Software can create, amend and delete entries of that
+type — but only entries created through your own instructions.</p>
+
+<h2>3. How the data is used</h2>
+
+<p>Solely to fulfil the requests you make yourself. When you ask Claude a question about your
+health data, your instance retrieves the relevant records and returns them to your Claude client.
+When you ask it to record a meal, a weight or a workout, it writes that entry to your Google Health
+account.</p>
+
+<p>The Software performs no processing beyond this: no profiling, no scoring, no inference beyond
+what you explicitly request, and no background collection. It makes requests only while you are
+actively using it.</p>
+
+<h2>4. Where the data goes</h2>
+
+<p>Data flows only between these parties:</p>
+
+<ul>
+  <li><strong>Google</strong> — the source of the data, accessed under the scopes you approved.</li>
+  <li><strong>Your own deployment</strong> — by default a Cloudflare Workers instance in your own
+  Cloudflare account, acting as a processor on your behalf under Cloudflare's terms.</li>
+  <li><strong>Anthropic (Claude)</strong> — receives the data returned by the requests you make,
+  because Claude is the client you are asking. This is handled under Anthropic's own privacy
+  terms.</li>
+</ul>
+
+<p>Your health data is <strong>not</strong> transmitted to the authors of the Software, and not to
+any analytics, advertising, tracking or data-broker service. The Software contains no telemetry.</p>
+
+<h2>5. What is stored, and for how long</h2>
+
+<div class="table-wrap">
+<table>
+  <tr><th>Stored item</th><th>Where</th><th>Retention</th></tr>
+  <tr>
+    <td>Google OAuth access and refresh tokens</td>
+    <td>Cloudflare Workers KV, in your account</td>
+    <td>Until you revoke access or delete the store</td>
+  </tr>
+  <tr>
+    <td>Cached API responses</td>
+    <td>Cloudflare Workers KV, in your account</td>
+    <td>Automatically expires after 1 hour</td>
+  </tr>
+  <tr>
+    <td>Meal presets you create</td>
+    <td>Cloudflare Workers KV, in your account</td>
+    <td>Until you delete them</td>
+  </tr>
+</table>
+</div>
+
+<p>Responses are cached briefly to stay within API rate limits. No permanent copy of your health
+history is created, and no database of your records is assembled.</p>
+
+<h2>6. Google API Services Limited Use disclosure</h2>
+
+<p>The Software's use and transfer of information received from Google APIs adheres to the
+<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services
+User Data Policy</a>, including the Limited Use requirements.</p>
+
+<p>Specifically, data obtained through Google APIs is <strong>not</strong>:</p>
+
+<ul>
+  <li>transferred or sold to third parties for advertising, marketing or any other purpose;</li>
+  <li>used to serve advertisements;</li>
+  <li>used to train generalised artificial-intelligence or machine-learning models;</li>
+  <li>read by any human, except where you direct it, where required for security purposes, or where
+  required by law.</li>
+</ul>
+
+<h2>7. Security</h2>
+
+<p>Each deployment is protected by two independent controls: a high-entropy secret embedded in the
+endpoint URL, compared in constant time, and an IP allowlist restricting requests to Anthropic's
+published outbound address range. OAuth credentials are held as encrypted platform secrets and are
+never present in the source code.</p>
+
+<p>Because you host the instance, its security ultimately depends on your own account hygiene —
+keep your Cloudflare and Google accounts protected, and rotate the endpoint secret if you suspect
+it has been exposed.</p>
+
+<h2>8. Your controls</h2>
+
+<ul>
+  <li><strong>Withdraw consent at any time</strong> at
+  <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Access
+  stops immediately.</li>
+  <li><strong>Delete everything stored</strong> by deleting the Workers KV namespaces and the
+  Worker itself. No copy remains anywhere else.</li>
+  <li><strong>Manage the underlying records</strong> in the Google Health app, which remains the
+  system of record for your data.</li>
+</ul>
+
+<h2>9. Children</h2>
+
+<p>The Software is not directed at children and should not be used to process the health data of
+anyone under the age at which they can give valid consent in their jurisdiction.</p>
+
+<h2>10. Changes</h2>
+
+<p>Any revision to this policy will be published on this page with an updated date above. The full
+revision history is visible in the public repository.</p>
+
+<h2>11. Contact</h2>
+
+<p>Questions about the Software can be raised as an issue at
+<a href="https://github.com/Novrax/fitbit-googlehealth-mcp/issues">github.com/Novrax/fitbit-googlehealth-mcp/issues</a>.</p>
+
+<p>If you are running your own deployment, you are the controller of the data it processes; queries
+about that data are a matter for you and the platforms you have chosen.</p>
+
+<footer>
+  <p><a href="./">Home</a> · <a href="terms.html">Terms of Service</a></p>
+</footer>
+
+</main>
+</body>
+</html>

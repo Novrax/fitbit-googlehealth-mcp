@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Google Health MCP Server</title>
+<meta name="description" content="A self-hosted Model Context Protocol server that connects your own Google Health data to Claude.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+
+<nav class="site">
+  <a href="./">Home</a>
+  <a href="privacy.html">Privacy Policy</a>
+  <a href="terms.html">Terms of Service</a>
+  <a href="https://github.com/Novrax/fitbit-googlehealth-mcp">Source code</a>
+</nav>
+
+<h1>Google Health MCP Server</h1>
+<p class="lede">A self-hosted Model Context Protocol (MCP) server that connects your own Google Health data to Claude.</p>
+
+<h2>What it is</h2>
+
+<p>This is an open-source personal tool. It runs as a small serverless application on
+<strong>your own</strong> Cloudflare Workers account, authenticates against
+<strong>your own</strong> Google Cloud project, and reads <strong>your own</strong> Google Health
+data so that you can ask Claude questions about it.</p>
+
+<p>It is a successor to the Fitbit Web API integration in the same project, rebuilt against the
+Google Health API (<code>health.googleapis.com/v4</code>) after Google announced the retirement of
+the legacy Fitbit Web API in September 2026.</p>
+
+<div class="callout">
+  <p><strong>There is no hosted service here.</strong> Nobody operates this on your behalf. Each
+  user deploys a private instance from the source code, holds their own OAuth credentials, and is
+  the only person who can reach their deployment.</p>
+</div>
+
+<h2>What it does</h2>
+
+<ul>
+  <li><strong>Reads</strong> activity and steps, heart rate, sleep and sleep stages, weight and body
+  fat, food and water logs, blood oxygen, respiratory rate, skin temperature, heart rate
+  variability, VO<sub>2</sub> max, and paired device status.</li>
+  <li><strong>Writes</strong> food, water, weight, body fat, activity and sleep entries back to
+  Google Health.</li>
+  <li><strong>Estimates meals from photographs</strong> — you attach a photo in Claude, Claude
+  estimates the nutrition, and the result is written to your food log.</li>
+</ul>
+
+<h2>How it works</h2>
+
+<div class="table-wrap">
+<table>
+  <tr>
+    <th>Component</th>
+    <th>Role</th>
+  </tr>
+  <tr>
+    <td>Google Health API</td>
+    <td>The source of your health data, accessed only with scopes you explicitly approve.</td>
+  </tr>
+  <tr>
+    <td>Your Cloudflare Worker</td>
+    <td>Your private deployment. Holds your OAuth tokens and brokers requests.</td>
+  </tr>
+  <tr>
+    <td>Claude</td>
+    <td>Your MCP client. Receives only the data returned by the requests you make.</td>
+  </tr>
+</table>
+</div>
+
+<p>Access is restricted two ways: a secret embedded in the endpoint URL, and an IP allowlist
+limited to Anthropic's published outbound address range.</p>
+
+<h2>Get it</h2>
+
+<p>Source code, setup instructions and licence:
+<a href="https://github.com/Novrax/fitbit-googlehealth-mcp">github.com/Novrax/fitbit-googlehealth-mcp</a></p>
+
+<h2>Not medical advice</h2>
+
+<p>This tool surfaces consumer wearable data and lets a language model summarise it. Consumer
+devices are not medical instruments and language models make mistakes. Nothing produced through
+this tool is medical advice, diagnosis, or treatment. Talk to a qualified clinician about health
+decisions.</p>
+
+<footer>
+  <p>Open source under the MIT Licence.
+  Derived from <a href="https://github.com/tachibanayu24/fitbit-googlehealth-mcp">tachibanayu24/fitbit-googlehealth-mcp</a>.</p>
+  <p><a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Service</a></p>
+</footer>
+
+</main>
+</body>
+</html>

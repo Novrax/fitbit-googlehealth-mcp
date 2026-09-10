@@ -1,0 +1,170 @@
+/* Shared styling for the GitHub Pages site (homepage, privacy policy, terms). */
+
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1b1f24;
+  --muted: #5b6570;
+  --rule: #e3e7ec;
+  --accent: #1a56b8;
+  --card: #f6f8fa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --fg: #e6eaf0;
+    --muted: #9aa5b1;
+    --rule: #262c34;
+    --accent: #6fa8ff;
+    --card: #161b22;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding-block: 48px;
+  padding-inline: 20px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 1.85rem;
+  line-height: 1.25;
+  margin: 0 0 0.25em;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 2.2em 0 0.6em;
+  padding-top: 1.2em;
+  border-top: 1px solid var(--rule);
+  letter-spacing: -0.005em;
+}
+
+h2:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 1.6em 0 0.4em;
+}
+
+p,
+li {
+  color: var(--fg);
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+code {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.87em;
+}
+
+pre {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.lede {
+  font-size: 1.1rem;
+  color: var(--muted);
+  margin-top: 0;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 2.4em;
+}
+
+.callout {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin: 1.6em 0;
+}
+
+.callout p {
+  margin: 0;
+}
+
+.callout p + p {
+  margin-top: 0.7em;
+}
+
+nav.site {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 40px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+
+footer {
+  margin-top: 56px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.2em 0;
+  font-size: 0.94rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+th {
+  font-weight: 600;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
