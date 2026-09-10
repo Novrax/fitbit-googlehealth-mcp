@@ -9,6 +9,8 @@ export const ProfileSchema = z.object({
     firstName: z.string().optional(),
     lastName: z.string().optional(),
     dateOfBirth: z.string().optional(),
+    /** Google Health reports age directly; Fitbit reported a date of birth. */
+    age: z.number().optional(),
     gender: z.string().optional(),
     height: z.number().optional(),
     heightUnit: z.string().optional(),

@@ -1,4 +1,5 @@
 import type { Env } from '../../env';
+import { toLocalTimeString } from '../../lib/date';
 import { UnsupportedOperationError } from '../../lib/errors';
 import type {
   ActivityResourceT,
@@ -38,6 +39,7 @@ import {
   durationMs,
   fromCivilDate,
   GOOGLE_TO_MEAL_TYPE_ID,
+  kebabToCamel,
   MEAL_TYPE_TO_GOOGLE,
   NUTRIENT,
   nameToNumericId,
@@ -74,9 +76,17 @@ const ACTIVITY_RESOURCE_MAP: Record<
 
 export class GoogleHealthProvider implements HealthProvider {
   private readonly client: GoogleHealthClient;
+  /**
+   * Resolved once from the environment rather than read from module state, so
+   * the provider behaves identically however it is constructed — a silently
+   * UTC-defaulted instance is the kind of bug that only shows up as data an
+   * hour out of place.
+   */
+  private readonly timeZone: string;
 
   constructor(env: Env) {
     this.client = new GoogleHealthClient(env);
+    this.timeZone = env.TIMEZONE?.trim() || 'UTC';
   }
 
   // ---------------------------------------------------------------- helpers
@@ -89,17 +99,74 @@ export class GoogleHealthProvider implements HealthProvider {
     opts: { limit?: number } = {},
   ): Promise<Row[]> {
     const rows = await this.client.listAll(dataType, {
-      filter: dayRangeFilter(dataType, timeField, start, end),
+      filter: dayRangeFilter(dataType, timeField, start, end, this.timeZone),
       pageSize: Math.min(maxPageSize(dataType), 1000),
       limit: opts.limit,
     });
     return rows as Row[];
   }
 
+  /**
+   * List a data type and unwrap each DataPoint to its payload.
+   *
+   * A DataPoint nests its values under a camelCase key named for the type, so
+   * a `daily-resting-heart-rate` row arrives as
+   * `{dailyRestingHeartRate: {date, beatsPerMinute}}` rather than with those
+   * fields at the top level. Reading the wrapper directly yields undefined for
+   * every field, which is silent rather than loud, so every read goes through
+   * here.
+   */
+  private async listPayloads(
+    dataType: string,
+    timeField: TimeField,
+    start: string,
+    end: string,
+    opts: { limit?: number } = {},
+  ): Promise<Row[]> {
+    const rows = await this.list(dataType, timeField, start, end, opts);
+    const key = kebabToCamel(dataType);
+    return rows.map((r) => GoogleHealthProvider.unwrap(r, key));
+  }
+
   /** Unwrap a DataPoint into its type-specific payload plus resource name. */
   private static unwrap(row: Row, key: string): Row {
     const payload = (row[key] ?? {}) as Row;
     return { ...payload, __name: row.name };
+  }
+
+  /**
+   * Minutes spent at each activity level, per local day.
+   *
+   * `activity-level` rejects both rollup verbs ("DailyRollup is not supported
+   * for data type activity-level"), so the individual periods are listed and
+   * summed here instead.
+   */
+  private async activityLevelMinutesByDay(
+    start: string,
+    end: string,
+  ): Promise<Map<string, Record<string, number>>> {
+    const rows = await this.listPayloads('activity-level', 'interval', start, end);
+    const byDay = new Map<string, Record<string, number>>();
+
+    for (const row of rows) {
+      const interval = (row.interval ?? {}) as Row;
+      const level = String(row.activityLevelType ?? '');
+      const day = pointDate(row);
+      if (!level || !day) continue;
+
+      const from = Date.parse(interval.startTime as string);
+      const to = Date.parse(interval.endTime as string);
+      if (!Number.isFinite(from) || !Number.isFinite(to)) continue;
+
+      const bucket = byDay.get(day) ?? {};
+      bucket[level] = (bucket[level] ?? 0) + (to - from) / 60000;
+      byDay.set(day, bucket);
+    }
+
+    for (const bucket of byDay.values()) {
+      for (const k of Object.keys(bucket)) bucket[k] = Math.round(bucket[k] as number);
+    }
+    return byDay;
   }
 
   private assertRollupRange(dataType: string, start: string, end: string): void {
@@ -131,8 +198,10 @@ export class GoogleHealthProvider implements HealthProvider {
     return {
       user: {
         encodedId: String(identity.legacyUserId ?? identity.healthUserId ?? ''),
-        displayName: (settings.name as string) ?? (profile.name as string) ?? undefined,
-        fullName: (settings.name as string) ?? undefined,
+        // `name` on these resources is the API resource path
+        // ("users/123/settings"), not a human name — there is no display name
+        // in the v4 profile, so leave it unset rather than echo a path.
+        age: num(profile.age),
         timezone: (settings.timeZone as string) ?? undefined,
         locale: (settings.languageLocale as string) ?? undefined,
         memberSince: fromCivilDate(profile.membershipStartDate),
@@ -175,12 +244,12 @@ export class GoogleHealthProvider implements HealthProvider {
       this.client.dailyRollUp('total-calories', date, date).catch(() => []),
       this.client.dailyRollUp('distance', date, date).catch(() => []),
       this.client.dailyRollUp('floors', date, date).catch(() => []),
-      this.client.dailyRollUp('activity-level', date, date).catch(() => []),
+      this.activityLevelMinutesByDay(date, date).catch(() => new Map()),
       this.client.dailyRollUp('active-zone-minutes', date, date).catch(() => []),
-      this.list('daily-resting-heart-rate', 'daily', date, date).catch(() => []),
+      this.listPayloads('daily-resting-heart-rate', 'daily', date, date).catch(() => []),
     ]);
 
-    const levels = readActivityLevelMinutes(activity[0]);
+    const levels = activity.get(date) ?? {};
     const distanceMm = num(pickRollup(distance[0], 'millimetersSum'));
 
     return {
@@ -216,12 +285,19 @@ export class GoogleHealthProvider implements HealthProvider {
     }
     this.assertRollupRange(mapping.dataType, start, end);
 
+    // activity-level has no rollup verb, so its series is summed from listed
+    // periods instead.
+    if (mapping.dataType === 'activity-level') {
+      const byDay = await this.activityLevelMinutesByDay(start, end);
+      const points = [...byDay.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, levels]) => ({ dateTime: day, value: levels[mapping.field] ?? 0 }));
+      return { resource, points };
+    }
+
     const buckets = await this.client.dailyRollUp(mapping.dataType, start, end);
     const points = buckets.map((b) => {
-      const raw =
-        mapping.dataType === 'activity-level'
-          ? readActivityLevelMinutes(b)[mapping.field]
-          : num(pickRollup(b, mapping.field));
+      const raw = num(pickRollup(b, mapping.field));
       const scaled = raw === undefined ? 0 : raw * (mapping.scale ?? 1);
       return { dateTime: rollupDate(b) ?? start, value: scaled };
     });
@@ -254,7 +330,7 @@ export class GoogleHealthProvider implements HealthProvider {
   }
 
   async getHeartRateRange(start: string, end: string): Promise<HeartRateDay[]> {
-    const rows = await this.list('daily-resting-heart-rate', 'daily', start, end);
+    const rows = await this.listPayloads('daily-resting-heart-rate', 'daily', start, end);
     return rows.map((r) => ({
       dateTime: fromCivilDate(r.date) ?? start,
       value: { restingHeartRate: num(r.beatsPerMinute) },
@@ -288,12 +364,13 @@ export class GoogleHealthProvider implements HealthProvider {
     const points = [...buckets.entries()]
       .sort(([a], [b]) => a - b)
       .map(([key, b]) => ({
-        time: new Date(key * 1000).toISOString().slice(11, 19),
+        // Local wall-clock, so a reading taken at 09:00 reads as 09:00.
+        time: toLocalTimeString(key * 1000, this.timeZone),
         value: Math.round(b.sum / b.n),
       }));
 
     const [rhr, azm] = await Promise.all([
-      this.list('daily-resting-heart-rate', 'daily', date, date).catch(() => []),
+      this.listPayloads('daily-resting-heart-rate', 'daily', date, date).catch(() => []),
       this.client.dailyRollUp('active-zone-minutes', date, date).catch(() => []),
     ]);
 
@@ -436,7 +513,7 @@ export class GoogleHealthProvider implements HealthProvider {
   }
 
   async getSpO2(start: string, end: string): Promise<SpO2Day[]> {
-    const rows = await this.list('daily-oxygen-saturation', 'daily', start, end);
+    const rows = await this.listPayloads('daily-oxygen-saturation', 'daily', start, end);
     return rows.map((r) => ({
       dateTime: fromCivilDate(r.date) ?? start,
       value: {
@@ -448,7 +525,7 @@ export class GoogleHealthProvider implements HealthProvider {
   }
 
   async getRespiratoryRate(start: string, end: string): Promise<RespiratoryRateDay[]> {
-    const rows = await this.list('daily-respiratory-rate', 'daily', start, end);
+    const rows = await this.listPayloads('daily-respiratory-rate', 'daily', start, end);
     return rows.map((r) => ({
       dateTime: fromCivilDate(r.date) ?? start,
       value: { breathingRate: num(r.breathsPerMinute) },
@@ -456,7 +533,12 @@ export class GoogleHealthProvider implements HealthProvider {
   }
 
   async getSkinTemperature(start: string, end: string): Promise<SkinTempDay[]> {
-    const rows = await this.list('daily-sleep-temperature-derivations', 'daily', start, end);
+    const rows = await this.listPayloads(
+      'daily-sleep-temperature-derivations',
+      'daily',
+      start,
+      end,
+    );
     return rows.map((r) => {
       const nightly = num(r.nightlyTemperatureCelsius);
       const baseline = num(r.baselineTemperatureCelsius);
@@ -477,7 +559,7 @@ export class GoogleHealthProvider implements HealthProvider {
   }
 
   async getHRV(start: string, end: string): Promise<HrvDay[]> {
-    const rows = await this.list('daily-heart-rate-variability', 'daily', start, end);
+    const rows = await this.listPayloads('daily-heart-rate-variability', 'daily', start, end);
     return rows.map((r) => ({
       dateTime: fromCivilDate(r.date) ?? start,
       value: {
@@ -490,7 +572,7 @@ export class GoogleHealthProvider implements HealthProvider {
   async getCardioFitness(date: string): Promise<CardioFitness> {
     // VO2 max is not recomputed daily, so look back a month and take the most
     // recent reading rather than returning nothing for a quiet day.
-    const rows = await this.list('daily-vo2-max', 'daily', addDays(date, -30), date);
+    const rows = await this.listPayloads('daily-vo2-max', 'daily', addDays(date, -30), date);
     const latest = rows[rows.length - 1] as Row | undefined;
     return {
       dateTime: latest ? (fromCivilDate(latest.date) ?? date) : date,
@@ -748,45 +830,46 @@ function pickRollup(bucket: Row | undefined, field: string): unknown {
   return undefined;
 }
 
-/** The local date a rollup bucket covers. */
+/**
+ * The local date a rollup bucket covers.
+ *
+ * Buckets label themselves with `civilStartTime`, not `date` — getting this
+ * wrong collapses an entire time series onto a single day.
+ */
 function rollupDate(bucket: Row | undefined): string | undefined {
   if (!bucket) return undefined;
   return (
+    fromCivilDate((bucket.civilStartTime as Row | undefined)?.date) ??
     fromCivilDate(bucket.date) ??
     fromCivilDate((bucket.startDate as Row | undefined)?.date) ??
     fromCivilDate((bucket.start as Row | undefined)?.date)
   );
 }
 
-/** Minutes per activity level from an `activity-level` rollup bucket. */
-function readActivityLevelMinutes(bucket: Row | undefined): Record<string, number | undefined> {
-  const out: Record<string, number | undefined> = {};
-  if (!bucket) return out;
-  const byLevel =
-    (pickRollup(bucket, 'activityLevelRollupByActivityLevelType') as Row[] | undefined) ??
-    (pickRollup(bucket, 'byActivityLevelType') as Row[] | undefined) ??
-    [];
-  for (const entry of byLevel) {
-    const type = String(entry.activityLevelType ?? entry.type ?? '');
-    if (type) out[type] = num(entry.minutesSum ?? entry.minutes ?? entry.durationMinutes);
-  }
-  return out;
-}
+/**
+ * Heart-rate zones from an `active-zone-minutes` rollup bucket.
+ *
+ * The bucket carries one flat key per zone — `sumInFatBurnHeartZone`,
+ * `sumInCardioHeartZone`, `sumInPeakHeartZone` — rather than an array of zone
+ * objects, and no zone bounds at all.
+ */
+const AZM_ZONE_FIELDS: Array<[field: string, name: string]> = [
+  ['sumInFatBurnHeartZone', 'Fat Burn'],
+  ['sumInCardioHeartZone', 'Cardio'],
+  ['sumInPeakHeartZone', 'Peak'],
+];
 
-/** Heart-rate zones from an `active-zone-minutes` rollup bucket. */
 function readAzmZones(bucket: Row | undefined): HeartRateZone[] | undefined {
   if (!bucket) return undefined;
-  const byZone =
-    (pickRollup(bucket, 'activeZoneMinutesByHeartRateZone') as Row[] | undefined) ??
-    (pickRollup(bucket, 'byHeartRateZone') as Row[] | undefined);
-  if (!byZone?.length) return undefined;
-  return byZone.map((z) => ({
-    name: String(z.heartRateZone ?? z.zone ?? ''),
-    // Google's AZM rollup carries no zone bounds, only the minutes in each.
-    min: 0,
-    max: 0,
-    minutes: num(z.activeZoneMinutesSum ?? z.activeZoneMinutes ?? z.minutes),
-  }));
+  const zones: HeartRateZone[] = [];
+  for (const [field, name] of AZM_ZONE_FIELDS) {
+    const minutes = num(pickRollup(bucket, field));
+    if (minutes !== undefined) {
+      // Bounds are not reported by this endpoint; only the minutes are real.
+      zones.push({ name, min: 0, max: 0, minutes });
+    }
+  }
+  return zones.length ? zones : undefined;
 }
 
 /** Seconds covered by one sleep stage segment. */

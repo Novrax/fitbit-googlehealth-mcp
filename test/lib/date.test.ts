@@ -2,10 +2,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   assertIsoDate,
   getTimeZone,
+  localDayStartUtc,
   normalizeRange,
   setTimeZone,
   today,
   toLocalDateString,
+  toLocalTimeString,
+  zoneOffsetMs,
 } from '../../src/lib/date';
 
 afterEach(() => setTimeZone('UTC'));
@@ -100,5 +103,57 @@ describe('normalizeRange', () => {
   it('throws when either date is malformed', () => {
     expect(() => normalizeRange('2026-4-1', '2026-04-22')).toThrow(RangeError);
     expect(() => normalizeRange('2026-04-01', 'tomorrow')).toThrow(RangeError);
+  });
+});
+
+describe('zoneOffsetMs', () => {
+  it('reports the summer and winter offsets for a DST zone', () => {
+    expect(zoneOffsetMs(new Date('2026-06-15T12:00:00Z'), 'Europe/London')).toBe(3_600_000);
+    expect(zoneOffsetMs(new Date('2026-01-15T12:00:00Z'), 'Europe/London')).toBe(0);
+  });
+
+  it('reports negative offsets for zones behind UTC', () => {
+    expect(zoneOffsetMs(new Date('2026-09-10T12:00:00Z'), 'America/New_York')).toBe(-14_400_000);
+  });
+
+  it('is zero for UTC and for an unknown zone', () => {
+    expect(zoneOffsetMs(new Date('2026-09-10T12:00:00Z'), 'UTC')).toBe(0);
+    expect(zoneOffsetMs(new Date('2026-09-10T12:00:00Z'), 'Not/AZone')).toBe(0);
+  });
+});
+
+describe('localDayStartUtc', () => {
+  it('returns the UTC instant at which the local day begins', () => {
+    expect(localDayStartUtc('2026-09-10', 'Europe/London').toISOString()).toBe(
+      '2026-09-09T23:00:00.000Z',
+    );
+    expect(localDayStartUtc('2026-01-10', 'Europe/London').toISOString()).toBe(
+      '2026-01-10T00:00:00.000Z',
+    );
+    expect(localDayStartUtc('2026-09-10', 'America/New_York').toISOString()).toBe(
+      '2026-09-10T04:00:00.000Z',
+    );
+  });
+
+  it('lands correctly on a DST transition day', () => {
+    // Clocks go forward in the UK on 2026-03-29; the day still starts at 00:00 GMT.
+    expect(localDayStartUtc('2026-03-29', 'Europe/London').toISOString()).toBe(
+      '2026-03-29T00:00:00.000Z',
+    );
+    // The day after is already BST.
+    expect(localDayStartUtc('2026-03-30', 'Europe/London').toISOString()).toBe(
+      '2026-03-29T23:00:00.000Z',
+    );
+  });
+});
+
+describe('toLocalTimeString', () => {
+  it('renders an instant as local wall-clock', () => {
+    expect(toLocalTimeString(Date.parse('2026-09-10T08:30:00Z'), 'Europe/London')).toBe('09:30:00');
+    expect(toLocalTimeString(Date.parse('2026-01-10T08:30:00Z'), 'Europe/London')).toBe('08:30:00');
+  });
+
+  it('falls back to UTC for an unknown zone', () => {
+    expect(toLocalTimeString(Date.parse('2026-09-10T08:30:00Z'), 'Not/AZone')).toBe('08:30:00');
   });
 });

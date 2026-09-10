@@ -6,6 +6,14 @@
  * schema that expects a number.
  */
 
+/**
+ * kebab-case data type id -> the camelCase key its payload sits under inside a
+ * DataPoint. `daily-resting-heart-rate` becomes `dailyRestingHeartRate`.
+ */
+export function kebabToCamel(dataType: string): string {
+  return dataType.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+}
+
 export function num(v: unknown): number | undefined {
   if (v === undefined || v === null || v === '') return undefined;
   const n = typeof v === 'number' ? v : Number(v);

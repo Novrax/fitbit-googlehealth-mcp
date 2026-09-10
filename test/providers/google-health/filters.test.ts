@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setTimeZone } from '../../../src/lib/date';
 import {
   addDays,
   civilDate,
@@ -127,5 +128,42 @@ describe('API limits', () => {
     expect(maxPageSize('sleep')).toBe(25);
     expect(maxPageSize('exercise')).toBe(25);
     expect(maxPageSize('steps')).toBe(10000);
+  });
+});
+
+describe('sample-type bounds follow the configured timezone', () => {
+  afterEach(() => setTimeZone('UTC'));
+
+  it('anchors the window to LOCAL midnight, not UTC midnight', () => {
+    // Europe/London is UTC+1 in September, so 10 Sept locally begins at
+    // 23:00Z on the 9th. Using UTC midnight would shift the day by an hour
+    // and silently drop the first hour of readings.
+    setTimeZone('Europe/London');
+    const f = dayRangeFilter('weight', 'sample', '2026-09-10', '2026-09-10');
+    expect(f).toContain('>= "2026-09-09T23:00:00Z"');
+    expect(f).toContain('< "2026-09-10T23:00:00Z"');
+  });
+
+  it('handles a zone behind UTC', () => {
+    // America/New_York is UTC-4 in September.
+    setTimeZone('America/New_York');
+    const f = dayRangeFilter('weight', 'sample', '2026-09-10', '2026-09-10');
+    expect(f).toContain('>= "2026-09-10T04:00:00Z"');
+    expect(f).toContain('< "2026-09-11T04:00:00Z"');
+  });
+
+  it('uses plain UTC midnight when the zone is UTC', () => {
+    setTimeZone('UTC');
+    expect(dayRangeFilter('weight', 'sample', '2026-09-10', '2026-09-10')).toBe(
+      'weight.sample_time.physical_time >= "2026-09-10T00:00:00Z" AND ' +
+        'weight.sample_time.physical_time < "2026-09-11T00:00:00Z"',
+    );
+  });
+
+  it('leaves civil-time filters alone — they are already wall-clock', () => {
+    setTimeZone('Europe/London');
+    const f = dayRangeFilter('steps', 'interval', '2026-09-10', '2026-09-10');
+    expect(f).toContain('>= "2026-09-10T00:00:00"');
+    expect(f).not.toContain('Z"');
   });
 });

@@ -16,9 +16,10 @@ The legacy **Fitbit Web API (`api.fitbit.com`) is being decommissioned in Septem
 | **Legacy backend** | Fitbit Web API, still present behind `HEALTH_PROVIDER=fitbit`, on borrowed time |
 | **Written against** | v4 discovery document, revision **20260909** |
 
-> **⚠ The Google Health provider has not yet been run against live data.** Every field name, filter format and request shape is taken from the official v4 discovery document and cross-checked against Google's own [`google-health-cli`](https://github.com/Google-Health-API/google-health-cli), but no call has been made with a real token yet. A handful of *rollup* field names (`countSum`, `millimetersSum`, and the per-activity-level breakdown) are inferred rather than observed.
->
-> **Run `pnpm run probe:google` after authenticating.** It reports, per data type, what actually came back and which value fields were present — that is how the inferred names get confirmed or corrected. See [Verifying](#verifying).
+Verified against live Google Health data on 2026-09-10: all 17 read methods return real
+values from a Fitbit Air. `pnpm run verify:provider` re-runs that check against your own
+account, and `pnpm run probe:google` dumps the raw API shapes if you need to debug a
+specific data type.
 
 ---
 
@@ -187,6 +188,17 @@ GOOGLE_ACCESS_TOKEN=$(pnpm wrangler kv key get --remote --binding=TOKENS google_
 
 The probe is read-only. For each endpoint it prints `✓` with the value fields that came back, `·` if reachable but empty, or `✗` with the API's error. A `403` means that scope was not granted — add it on the Data Access page and re-run `setup:google`.
 
+To check the provider itself rather than the raw API — that every read method returns
+sensible values, not `undefined` from a wrong field path:
+
+```bash
+pnpm run verify:provider
+```
+
+It calls all 17 read methods against your live account and prints a preview of each
+result. Read-only; it never writes or deletes. Access tokens last about an hour, so
+refresh `GOOGLE_ACCESS_TOKEN` in `.env` if it starts returning 401.
+
 ---
 
 ## Tools
@@ -270,6 +282,16 @@ Things that differ from Fitbit and cost time if you hit them cold:
 - **Skin temperature is absolute °C** plus a baseline; Fitbit reported only the deviation, so this server derives it.
 - **Nutrient enum is `SUGAR`, singular.** Fat and carbohydrate are top-level `totalFat` / `totalCarbohydrate` fields, not `nutrients[]` entries.
 - **Delete takes a resource name, not an id.** The numeric `logId` in these tools is a stable hash of that name, resolved by scanning the last 35 days.
+- **A DataPoint nests its values under a camelCase key** named for the data type, so a
+  `daily-resting-heart-rate` row arrives as `{dailyRestingHeartRate: {...}}`. Reading the
+  top level typechecks fine and yields `undefined` for every field.
+- **Rollup buckets are dated by `civilStartTime`,** not `date`.
+- **`activity-level` supports neither rollup verb** — the periods must be listed and
+  summed client-side.
+- **`active-zone-minutes` rollups carry flat `sumIn<Zone>HeartZone` keys,** not an array
+  of zone objects, and no zone bounds.
+- **Instant-valued types are filtered in true UTC,** so selecting a local day means
+  converting local midnight to UTC first — not using UTC midnight.
 
 ---
 

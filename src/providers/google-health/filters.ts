@@ -1,3 +1,4 @@
+import { localDayStartUtc } from '../../lib/date';
 import { addDays } from './client';
 
 /**
@@ -50,15 +51,25 @@ export function dayRangeFilter(
   timeField: TimeField,
   startDate: string,
   endDate: string,
+  timeZone?: string,
 ): string | undefined {
   const path = filterPath(dataType, timeField);
   if (!path) return undefined;
 
   const exclusiveEnd = addDays(endDate, 1);
   switch (timeField) {
-    case 'sample':
-      // Physical time is a true instant, so bound it with explicit UTC.
-      return `${path} >= "${startDate}T00:00:00Z" AND ${path} < "${exclusiveEnd}T00:00:00Z"`;
+    case 'sample': {
+      // Physical time is a true instant, so the bounds are the UTC moments at
+      // which the user's local day begins and ends — not UTC midnight, which
+      // would shift the window by the zone offset.
+      const from = localDayStartUtc(startDate, timeZone)
+        .toISOString()
+        .replace(/\.\d+Z$/, 'Z');
+      const to = localDayStartUtc(exclusiveEnd, timeZone)
+        .toISOString()
+        .replace(/\.\d+Z$/, 'Z');
+      return `${path} >= "${from}" AND ${path} < "${to}"`;
+    }
     case 'daily':
       return `${path} >= "${startDate}" AND ${path} < "${exclusiveEnd}"`;
     default:
@@ -72,6 +83,7 @@ export function singleDayFilter(
   dataType: string,
   timeField: TimeField,
   date: string,
+  timeZone?: string,
 ): string | undefined {
-  return dayRangeFilter(dataType, timeField, date, date);
+  return dayRangeFilter(dataType, timeField, date, date, timeZone);
 }

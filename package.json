@@ -16,7 +16,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "setup:google": "tsx scripts/setup-google.ts",
-    "probe:google": "tsx scripts/probe-google-health.ts"
+    "probe:google": "tsx scripts/probe-google-health.ts",
+    "verify:provider": "tsx scripts/verify-provider.ts"
   },
   "engines": {
     "node": ">=20"
