@@ -3,6 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2025-11-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Serve on the workers.dev hostname, but not on per-version preview URLs.
+# Preview URLs would expose this health endpoint on additional public
+# hostnames for no benefit on a single-user deployment.
+workers_dev = true
+preview_urls = false
+
 [vars]
 # Anthropic's published outbound CIDR for Claude → MCP server connections.
 ALLOWED_CIDRS = "160.79.104.0/21"
