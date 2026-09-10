@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Env } from '../../env';
 import { cacheKey, invalidate } from '../../lib/cache';
-import { assertIsoDate, todayJst } from '../../lib/date';
+import { assertIsoDate, today } from '../../lib/date';
 import { toolErrorResult } from '../../lib/errors';
 import {
   deletePreset,
@@ -182,7 +182,7 @@ export function registerPresetTools(server: McpServer, provider: HealthProvider,
             `Meal preset "${name}" not found. Use list_meal_presets to see what's saved.`,
           );
         }
-        const d = date ?? todayJst();
+        const d = date ?? today();
         assertIsoDate(d, 'date');
         const multiplier = amount ?? 1;
         const scaled = scalePresetNutrition(preset, multiplier);

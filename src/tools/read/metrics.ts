@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Env } from '../../env';
 import { cacheKey, getCached } from '../../lib/cache';
-import { assertIsoDate, normalizeRange, todayJst } from '../../lib/date';
+import { assertIsoDate, normalizeRange, today } from '../../lib/date';
 import { toolErrorResult } from '../../lib/errors';
 import type { HealthProvider } from '../../providers/types';
 import {
@@ -134,7 +134,7 @@ export function registerMetricsReadTools(
     {
       title: 'Cardio Fitness Score (VO2 max)',
       description:
-        'VO2 max estimate from Fitbit. Returned as a range string (e.g. "45-49") or a numeric value depending on device. Defaults to today (JST). Cached 1h.',
+        'VO2 max (cardio fitness) estimate, returned as a number. VO2 max is not recalculated daily, so this returns the most recent reading within the previous 30 days. Defaults to today. Cached 1h.',
       inputSchema: {
         date: z.string().describe('YYYY-MM-DD. Omit for today (JST).').optional(),
       },
@@ -142,7 +142,7 @@ export function registerMetricsReadTools(
     },
     async ({ date }) => {
       try {
-        const d = date ?? todayJst();
+        const d = date ?? today();
         assertIsoDate(d, 'date');
         const data = await getCached(env, cacheKey('get_cardio_fitness', { date: d }), () =>
           provider.getCardioFitness(d),

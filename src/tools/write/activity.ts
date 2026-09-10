@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Env } from '../../env';
 import { cacheKey, invalidate } from '../../lib/cache';
-import { assertIsoDate, todayJst } from '../../lib/date';
+import { assertIsoDate, today } from '../../lib/date';
 import { toolErrorResult } from '../../lib/errors';
 import type { HealthProvider } from '../../providers/types';
 import { ExerciseLogSchema } from '../../providers/types';
@@ -45,7 +45,7 @@ export function registerActivityWriteTool(
     },
     async (input) => {
       try {
-        const date = input.date ?? todayJst();
+        const date = input.date ?? today();
         assertIsoDate(date, 'date');
         if (!input.activityId && !input.activityName) {
           throw new RangeError('Either activityId or activityName must be provided.');
@@ -87,7 +87,7 @@ export function registerActivityWriteTool(
     async ({ logId, date }) => {
       try {
         await provider.deleteActivityLog(logId);
-        const d = date ?? todayJst();
+        const d = date ?? today();
         assertIsoDate(d, 'date');
         await invalidate(
           env,

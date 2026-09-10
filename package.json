@@ -1,7 +1,7 @@
 {
   "name": "fitbit-googlehealth-mcp",
-  "version": "0.1.0",
-  "description": "MCP server for Fitbit (and the upcoming Google Health API migration): comprehensive health-data access and photo-driven food logging for Claude mobile.",
+  "version": "0.2.0",
+  "description": "MCP server for Google Health (health.googleapis.com/v4), the successor to the Fitbit Web API: comprehensive health-data access and photo-driven food logging for Claude.",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "setup:google": "tsx scripts/setup-google.ts",
+    "probe:google": "tsx scripts/probe-google-health.ts"
   },
   "engines": {
     "node": ">=20"

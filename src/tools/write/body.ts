@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Env } from '../../env';
 import { cacheKey, invalidate } from '../../lib/cache';
-import { assertIsoDate, todayJst } from '../../lib/date';
+import { assertIsoDate, today } from '../../lib/date';
 import { toolErrorResult } from '../../lib/errors';
 import type { HealthProvider } from '../../providers/types';
 import { BodyFatLogSchema, WeightLogSchema } from '../../providers/types';
@@ -18,7 +18,7 @@ export function registerBodyWriteTools(
     'log_weight',
     {
       title: 'Log a weight entry (kg)',
-      description: 'Record a weight reading. BMI is computed by Fitbit if a height is on file.',
+      description: 'Record a weight reading, in kilograms.',
       inputSchema: {
         date: z.string().describe('YYYY-MM-DD. Omit for today (JST).').optional(),
         weightKg: z.number().positive().describe('Weight in kilograms, e.g. 65.2.'),
@@ -32,7 +32,7 @@ export function registerBodyWriteTools(
     },
     async ({ date, weightKg, time }) => {
       try {
-        const d = date ?? todayJst();
+        const d = date ?? today();
         assertIsoDate(d, 'date');
         const entry = await provider.logWeight({ date: d, weightKg, time });
         await invalidate(env, cacheKey('get_daily_summary', { date: d }));
@@ -64,7 +64,7 @@ export function registerBodyWriteTools(
     },
     async ({ date, fatPercent, time }) => {
       try {
-        const d = date ?? todayJst();
+        const d = date ?? today();
         assertIsoDate(d, 'date');
         const entry = await provider.logBodyFat({ date: d, fatPercent, time });
         return {
@@ -95,7 +95,7 @@ export function registerBodyWriteTools(
     async ({ logId, date }) => {
       try {
         await provider.deleteWeightLog(logId);
-        const d = date ?? todayJst();
+        const d = date ?? today();
         assertIsoDate(d, 'date');
         await invalidate(env, cacheKey('get_daily_summary', { date: d }));
         return {

@@ -12,8 +12,7 @@ export function registerBodyReadTools(server: McpServer, provider: HealthProvide
     'get_body_log',
     {
       title: 'Weight and body-fat log',
-      description:
-        'Logged weight and body fat entries across a date range. BMI is returned when Fitbit computed it. Cached 1h.',
+      description: 'Logged weight and body fat entries across a date range. Cached 1h.',
       inputSchema: {
         start: z.string().describe('YYYY-MM-DD'),
         end: z.string().describe('YYYY-MM-DD'),

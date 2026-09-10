@@ -2,7 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { Env } from '../../env';
 import { cacheKey, getCached } from '../../lib/cache';
-import { assertIsoDate, normalizeRange, todayJst } from '../../lib/date';
+import { assertIsoDate, normalizeRange, today } from '../../lib/date';
 import { toolErrorResult } from '../../lib/errors';
 import type { HealthProvider } from '../../providers/types';
 import {
@@ -22,7 +22,7 @@ export function registerActivityReadTools(
     {
       title: 'Daily activity summary',
       description:
-        'Steps, calories out, distance, heart rate zones (resting + zone minutes), active-minute bucket totals for a single day. Cached for 1 hour. NOTE: values for the current JST day can be unstable until Fitbit finalises aggregation (e.g. negative `sedentaryMinutes`, or a huge `caloriesOut` on the Out of Range zone). Prefer querying a previous day for trending analysis.',
+        'Steps, calories out, distance, floors, active-minute buckets and resting heart rate for a single day. Cached for 1 hour. NOTE: the current day is still being aggregated and its totals will keep changing until it closes — prefer a previous day for trend analysis. Individual metrics come from separate upstream rollups, so one may be absent while the rest are present.',
       inputSchema: {
         date: z.string().describe('YYYY-MM-DD. Omit for today (JST).').optional(),
       },
@@ -30,7 +30,7 @@ export function registerActivityReadTools(
     },
     async ({ date }) => {
       try {
-        const d = date ?? todayJst();
+        const d = date ?? today();
         assertIsoDate(d, 'date');
         const data = await getCached(env, cacheKey('get_daily_summary', { date: d }), () =>
           provider.getDailySummary(d),
@@ -101,7 +101,7 @@ export function registerActivityReadTools(
     },
     async ({ beforeDate, limit }) => {
       try {
-        const bd = beforeDate ?? todayJst();
+        const bd = beforeDate ?? today();
         assertIsoDate(bd, 'beforeDate');
         const exercises = await getCached(
           env,
