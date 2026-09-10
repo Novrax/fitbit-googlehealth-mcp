@@ -17,14 +17,18 @@
  * Read-only: it lists and rolls up, and never writes or deletes.
  */
 
+import { loadEnv } from './load-env';
+
+loadEnv();
+
 const BASE = 'https://health.googleapis.com/v4';
 
 const token = process.env.GOOGLE_ACCESS_TOKEN;
 if (!token) {
   console.error('Error: GOOGLE_ACCESS_TOKEN is not set.');
   console.error('');
-  console.error('  Run `pnpm run setup:google` first, then either paste the access token:');
-  console.error('    GOOGLE_ACCESS_TOKEN=ya29... pnpm run probe:google');
+  console.error('  Run `pnpm run setup:google` first, then either add it to .env:');
+  console.error('    GOOGLE_ACCESS_TOKEN=ya29...');
   console.error('  or pull the one the Worker is using:');
   console.error(
     '    GOOGLE_ACCESS_TOKEN=$(pnpm wrangler kv key get --remote --binding=TOKENS google_access_token) pnpm run probe:google',

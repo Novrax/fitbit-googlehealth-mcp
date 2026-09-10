@@ -69,13 +69,48 @@ pnpm install
 
 ### 3. Authorize
 
+Copy the template and paste your two values into it:
+
 ```bash
-export GOOGLE_CLIENT_ID=<your-client-id>
-export GOOGLE_CLIENT_SECRET=<your-client-secret>
+cp .env.example .env      # macOS / Linux / Git Bash
+copy .env.example .env    # Windows cmd / PowerShell
+```
+
+```ini
+# .env
+GOOGLE_CLIENT_ID=1234567890-abc123.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-your-secret-here
+```
+
+No quotes, no trailing spaces. `.env` is gitignored. Then:
+
+```bash
 pnpm run setup:google
 ```
 
 Your browser opens Google's consent screen. Approve it, and the script prints the exact `wrangler` commands for the next step.
+
+<details>
+<summary>Prefer environment variables to a file?</summary>
+
+The script reads real environment variables first, so these work too — the syntax just differs per shell:
+
+```powershell
+# PowerShell
+$env:GOOGLE_CLIENT_ID = "..."
+$env:GOOGLE_CLIENT_SECRET = "..."
+```
+```bash
+# bash / zsh / Git Bash
+export GOOGLE_CLIENT_ID=...
+export GOOGLE_CLIENT_SECRET=...
+```
+```bat
+:: Windows cmd
+set GOOGLE_CLIENT_ID=...
+set GOOGLE_CLIENT_SECRET=...
+```
+</details>
 
 Consent is collected here, in a real browser, on purpose: Google blocks OAuth inside embedded WebViews (`disallowed_useragent`), which is what Claude mobile would use.
 
@@ -118,10 +153,31 @@ New connectors cannot be added from Claude mobile — use the web.
 
 ---
 
+## Where secrets live
+
+Three separate places, for three separate purposes. This trips people up, so:
+
+| Purpose | Where | How it gets there |
+|---|---|---|
+| Running the local helper scripts (`setup:google`, `probe:google`) | `.env` in the repo root | You create it from `.env.example`. Gitignored. |
+| The **deployed** Worker on Cloudflare | Cloudflare Workers Secrets | `pnpm wrangler secret put GOOGLE_CLIENT_ID` — encrypted at rest, never in the repo |
+| Running the Worker locally with `pnpm dev` | `.dev.vars` in the repo root | You create it. Gitignored. |
+
+The deployed Worker **never reads `.env`** — Cloudflare doesn't upload it. If you skip
+`wrangler secret put`, the Worker deploys fine and then fails at runtime with a
+`GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set` error.
+
+Your Google **refresh token** is not in any of these. It lives in the Workers KV `TOKENS`
+namespace, put there by the `wrangler kv key put` commands in step 4.
+
 ## Verifying
 
 ```bash
-# with the access token setup:google printed
+# easiest: paste the access token setup:google printed into .env as
+#   GOOGLE_ACCESS_TOKEN=ya29...
+pnpm run probe:google
+
+# or pass it inline (bash / Git Bash)
 GOOGLE_ACCESS_TOKEN=ya29... pnpm run probe:google
 
 # or against the token the deployed Worker is using

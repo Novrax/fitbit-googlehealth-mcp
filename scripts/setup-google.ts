@@ -19,6 +19,9 @@ import { exec } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import http from 'node:http';
 import { z } from 'zod';
+import { envPath, loadEnv } from './load-env';
+
+loadEnv();
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -176,8 +179,17 @@ async function exchangeCode(opts: {
 }
 
 function printSetupHelp(): void {
-  console.error('Error: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set.');
+  console.error('Error: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are not set.');
   console.error('');
+  console.error('  Easiest: copy .env.example to .env and paste your credentials in.');
+  console.error(`  Expected at: ${envPath}`);
+  console.error('');
+  console.error('      cp .env.example .env      # macOS / Linux / Git Bash');
+  console.error('      copy .env.example .env    # Windows cmd / PowerShell');
+  console.error('');
+  console.error('  .env is gitignored and is only read by these local scripts.');
+  console.error('');
+  console.error('  To get those credentials:');
   console.error('  1. Create/select a Google Cloud project:');
   console.error('     https://console.cloud.google.com/projectcreate');
   console.error('  2. Enable the Google Health API:');
@@ -188,9 +200,7 @@ function printSetupHelp(): void {
   console.error('     expire after 7 days and the Worker breaks every week.');
   console.error('  4. Create an OAuth client ID, application type "Desktop app":');
   console.error('     https://console.cloud.google.com/apis/credentials');
-  console.error('  5. Export the values and run again:');
-  console.error('     export GOOGLE_CLIENT_ID=...');
-  console.error('     export GOOGLE_CLIENT_SECRET=...');
+  console.error('  5. Put them in .env and run this again:');
   console.error('     pnpm run setup:google');
 }
 
